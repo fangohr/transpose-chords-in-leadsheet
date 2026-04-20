@@ -1,6 +1,7 @@
 # chord-transpose
 
 Transpose whitespace-delimited chord symbols in mixed chord/lyric text while preserving the original whitespace layout.
+Lines are classified as either chord lines or text lines: text lines are left untouched, while malformed tokens on chord lines raise an error.
 
 The examples below work on this text-based leadsheet with lyrics and chords (`songs/scarborough-fair.txt`):
 
@@ -60,6 +61,23 @@ Eb         Bb        Cm
 She once was a true love of mine
 ```
 
+
+
+### Debug classification output (`--debug`):
+
+If chords are not transposed, it may be useful to ask the tool if it
+has correctly identified a line with chord symbols, or perhaps
+mistaken it with plain text (which is not being transposed). This can
+be done with the `--debug` flag:
+
+```bash
+transpose-chords songs/scarborough-fair.txt +2 --debug
+chords (all 3 tokens parsed as chords):     Bm        A        Bm
+text (contains non-chord token 'Are'):      Are you going to Scarborough Fair?
+chords (all 3 tokens parsed as chords):     D            A        Bm
+text (contains non-chord token 'Parsley,'): Parsley, sage, rosemary and thyme
+```
+
 # For developers
 
 ## Tool usage
@@ -102,6 +120,3 @@ Unique features of this package:
 - explicit error behavior for chord-like tokens
 - pixi-based workflow
 - tests around your exact song-sheet format.
-
-
-

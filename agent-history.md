@@ -109,3 +109,126 @@ It runs on push, pull_request, and workflow_dispatch, uses the official prefix-d
 run: pixi run test
 I pinned setup-pixi to v0.9.3 and enabled locked: true so CI uses the checked-in pixi.lock consistently.
 
+
+
+# New context
+
+# Prompt 6:
+
+This is a fairly new and untested project. Please review it critically for potential bugs, lack of test coverage, incomplete or
+  misleading documentation, etc.
+  
+# Response:
+• Findings
+
+  1. High: ordinary text is misclassified as chords or parse errors, so mixed text is not robust outside narrow song sheets. The
+     parser accepts any token starting with A-G plus digits or - as a valid chord body, and the fallback heuristic treats many other
+     words as “chord-like” and aborts. In practice, A4 paper becomes B4 paper, A-10 becomes B-10, and tokens like B2B, C3PO, Amigo,
+     D7th?, E2E raise ChordParseError. The issue comes from the very permissive body grammar and the looks_like_chord() heuristic in
+     src/chord_transpose/transposer.py:33, especially src/chord_transpose/transposer.py:94 and src/chord_transpose/transposer.py:126.
+     Current tests only protect a tiny subset of false-positive cases and even encode one surprising behavior (Am inside prose is
+     treated as a chord) in tests/test_transposer.py:44.
+  2. Medium: the CLI crashes with a traceback for ordinary file I/O failures instead of returning a controlled CLI error. main() only
+     catches ChordParseError; missing input files, unreadable files, and unwritable output paths will raise uncaught exceptions from
+     read_text() / write_text(). That is visible already through the broken Pixi example task, which currently explodes with
+     FileNotFoundError. See src/chord_transpose/cli.py:30 and pixi.toml:15.
+  3. Medium: developer documentation and automation have drifted from the repo state. The advertised Pixi example task points to
+     songs/monsun.txt, which does not exist, so pixi run example fails immediately; this is not covered by tests. See pixi.toml:13.
+     The README also does not document current failure modes or the parser’s aggressive chord detection, despite claiming support for
+     “mixed chord/lyric text” in README.md:3.
+  4. Low: repository hygiene is incomplete. Running the tests leaves untracked __pycache__ directories in src/ and tests/, which
+     means there is no repo-level .gitignore covering generated Python artifacts. That is minor, but it is exactly the kind of noise
+     that causes accidental commits in a new project.
+
+  Testing gaps
+
+  - No tests cover false positives on realistic non-lyric text such as A4, B2B, C3PO, A-10, E2E, or Amigo.
+  - No tests cover CLI error handling for missing input files, write failures, or invalid encodings.
+  - No tests validate README commands or Pixi tasks, which is why the shipped example task is broken.
+  - No tests cover option ordering / full CLI invocation through the installed entrypoint; current CLI tests call main() directly.
+
+  Open questions
+
+  - Is it acceptable for plain prose tokens like Am to transpose inside lyrics, or should chord detection become stricter and line/
+    context-aware?
+  - Do you want the CLI to treat file errors like parser errors and return a stable nonzero exit code with a short stderr message?
+
+  Summary
+
+  The core transposition logic works for the curated examples, and pixi run test currently passes, but the project is not yet robust
+  for general “mixed text” input. The biggest issue is parser overreach: it will either mutate normal text or stop on everyday non-
+  chord tokens.
+
+
+# Prompt 7:
+
+ Can we make it so that a line is either chords or text? Once we decide it is text, we can skip looking for chords. Otherwise we
+  should complain about unknown symbols.
+
+# Response
+
+• I’m changing the parser from token-by-token detection to line classification. I’ll treat a line as a chord line only when the whole
+  non-whitespace content looks like chords; otherwise it stays text unchanged.
+
+• The heuristic I’m using is conservative: a line becomes a chord line only if every non-space token on that line is either a valid
+  chord or at least chord-like. That keeps prose lines unchanged and still errors on malformed chord-only lines.
+
+I implemented that rule.
+
+  transpose_text() now classifies input line by line in src/chord_transpose/transposer.py. A line is treated as a chord line only if
+  either:
+
+  - every token is a valid chord, or
+  - at least two tokens are valid chords and the rest are chord-like
+
+  Otherwise the whole line is treated as text and left unchanged. If a chord line contains an unknown chord-like token, it still
+  raises ChordParseError.
+
+  I updated the tests in tests/test_transposer.py to cover the new behavior:
+
+  - prose lines like A4 paper and B2B C3PO A-10 stay unchanged
+  - mixed lines like C Am lyrics on same line stay unchanged
+  - malformed chord-only lines like C G/B Cmaj7x still fail
+
+  I also noted the line-based behavior in README.md.
+
+  Verification: pixi run test passes with 36 passed.
+
+# Prompt 8:
+
+› Please add a `--debug` option that prefixes every line with `chords:
+  ` or `text : ` depending on the classification. This is useful in
+  case something goes wrong. Put the classification `chords: `
+  together with the reason on the left, and only then show the
+  original file. Format: `chords (all 2 tokens parsed as chords): `.
+  Please insert white space so that the original file content is left
+  aligned even if the format and classification need varying numbers
+  of spaces.
+
+# Response
+
+• I’m adding a --debug mode to expose the line classification directly
+  in CLI output. I’ll wire it through the transposer, cover both
+  stdout and output-file paths, and keep normal behavior unchanged
+  when the flag is absent.
+
+# Prompt 9:
+
+Please improve the error handling, in particular if the input file
+name does not exist. Create a test for this, too. Once done, rename
+the test file in the `pixi run example` task to use one of the
+existing test files.
+
+# Response 
+
+Improved the CLI error handling in `src/chord_transpose/cli.py`: missing
+or unreadable input files now produce a short stderr message and exit
+with code 1 instead of a traceback. I also added a regression test for
+that in tests/test_transposer.py.
+
+I fixed the broken Pixi example task in pixi.toml to use
+songs/scarborough-fair.txt, which exists.
+
+Verification: pixi run test passes with 41 passed, and pixi run
+example now runs successfully.
+

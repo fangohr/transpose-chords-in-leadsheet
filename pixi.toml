@@ -12,5 +12,5 @@ chord-transpose = { path = ".", editable = true }
 
 [tasks]
 test = "pytest -v"
-example = "transpose-chords songs/monsun.txt +2"
+example = "transpose-chords songs/scarborough-fair.txt +2"
 cli-help = "transpose-chords --help"

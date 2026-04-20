@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .transposer import ChordParseError, transpose_text
+from .transposer import ChordParseError, debug_text, transpose_text
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,6 +20,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Render output notes using flat names instead of sharp names.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Prefix each output line with its classification: chords or text.",
+    )
     return parser
 
 
@@ -29,15 +34,31 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         text = args.inputfile.read_text(encoding="utf-8")
-        transposed = transpose_text(
-            text,
-            semitones=args.semitones,
-            prefer_flats=args.prefer_flats,
+    except OSError as exc:
+        print(f"Unable to read input file '{args.inputfile}': {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        transposed = (
+            debug_text(
+                text,
+                semitones=args.semitones,
+                prefer_flats=args.prefer_flats,
+            )
+            if args.debug
+            else transpose_text(
+                text,
+                semitones=args.semitones,
+                prefer_flats=args.prefer_flats,
+            )
         )
         if args.outputfile is None:
             print(transposed, end="")
         else:
             args.outputfile.write_text(transposed, encoding="utf-8")
+    except OSError as exc:
+        print(f"Unable to write output file '{args.outputfile}': {exc}", file=sys.stderr)
+        return 1
     except ChordParseError as exc:
         print(str(exc), file=sys.stderr)
         return 2

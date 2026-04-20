@@ -4,6 +4,7 @@ import pytest
 
 from chord_transpose import ChordParseError, transpose_chord_symbol, transpose_text
 from chord_transpose.cli import main
+from chord_transpose.transposer import classify_line, debug_text
 
 
 @pytest.mark.parametrize(
@@ -31,19 +32,51 @@ def test_prefer_flats_output() -> None:
 
 
 def test_preserves_whitespace_layout_in_mixed_text() -> None:
-    text = "C   G/B\nhello   world\nF#sus4   text\n"
-    expected = "D   A/C#\nhello   world\nG#sus4   text\n"
+    text = "C   G/B\nhello   world\nF#sus4\n"
+    expected = "D   A/C#\nhello   world\nG#sus4\n"
     assert transpose_text(text, 2) == expected
 
 
 def test_invalid_chord_like_token_raises() -> None:
     with pytest.raises(ChordParseError):
-        transpose_text("Cmaj7x lyrics", 1)
+        transpose_text("C G/B Cmaj7x\n", 1)
 
 
-def test_words_starting_with_note_letters_are_left_unchanged() -> None:
-    text = "Das Es Am Ende\n"
-    assert transpose_text(text, 2) == "Das Es Bm Ende\n"
+def test_text_lines_are_left_unchanged_even_with_chord_like_words() -> None:
+    text = "Das Es Am Ende\nA4 paper\nB2B C3PO A-10\n"
+    assert transpose_text(text, 2) == text
+
+
+def test_mixed_line_with_chords_and_lyrics_is_treated_as_text() -> None:
+    text = "C Am lyrics on same line\n"
+    assert transpose_text(text, 2) == text
+
+
+def test_classify_line_reports_text_and_chords() -> None:
+    assert classify_line("C   G/B", 2).kind == "chords"
+    assert classify_line("C   G/B", 2).content == "D   A/C#"
+    assert classify_line("C   G/B", 2).reason == "all 2 tokens parsed as chords"
+    assert classify_line("hello world", 2).kind == "text"
+    assert classify_line("hello world", 2).content == "hello world"
+    assert classify_line("hello world", 2).reason == "contains non-chord token 'hello'"
+
+
+def test_debug_text_prefixes_each_line_with_classification() -> None:
+    text = "C   G/B\nhello world\n"
+    expected = (
+        "chords (all 2 tokens parsed as chords):  D   A/C#\n"
+        "text (contains non-chord token 'hello'): hello world\n"
+    )
+    assert debug_text(text, 2) == expected
+
+
+def test_debug_reason_explains_chord_like_but_not_chord_line() -> None:
+    classified = classify_line("A4 paper", 2)
+    assert classified.kind == "text"
+    assert (
+        classified.reason
+        == "contains non-chord token 'paper'"
+    )
 
 
 @pytest.mark.parametrize(
@@ -119,6 +152,15 @@ def test_cli_prints_to_stdout_when_outputfile_is_omitted(
     assert captured.err == ""
 
 
+def test_cli_reports_missing_input_file(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["does-not-exist.txt", "+2"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert "Unable to read input file 'does-not-exist.txt':" in captured.err
+
+
 def test_cli_writes_outputfile_when_provided(tmp_path: Path) -> None:
     inputfile = tmp_path / "input.txt"
     outputfile = tmp_path / "output.txt"
@@ -128,3 +170,20 @@ def test_cli_writes_outputfile_when_provided(tmp_path: Path) -> None:
 
     assert exit_code == 0
     assert outputfile.read_text(encoding="utf-8") == "A# Dm Gm D#\n"
+
+
+def test_cli_debug_prints_classification_prefixes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    inputfile = tmp_path / "input.txt"
+    inputfile.write_text("C   G/B\nlyrics line\n", encoding="utf-8")
+
+    exit_code = main(["--debug", str(inputfile), "+2"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.out == (
+        "chords (all 2 tokens parsed as chords):   D   A/C#\n"
+        "text (contains non-chord token 'lyrics'): lyrics line\n"
+    )
+    assert captured.err == ""

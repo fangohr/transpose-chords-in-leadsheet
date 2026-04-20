@@ -38,7 +38,8 @@ CHORD_RE = re.compile(
     r"(?P<body>(?:(?:maj|min|dim|aug|sus|add|omit|no|dom|alt|M|m|Δ|ø|°|\+|-|#|b|\d+|\(|\))*)?)"
     r"(?P<slash>/(?P<bass>[A-G](?:#|b)?))?$"
 )
-TOKEN_SPLIT_RE = re.compile(r"(\s+)")
+LINE_SPLIT_RE = re.compile(r"(\r\n|\r|\n)")
+TOKEN_SPLIT_RE = re.compile(r"([^\S\r\n]+)")
 ROOT_PREFIX_RE = re.compile(r"^[A-G](?:#|b)?")
 
 
@@ -51,6 +52,13 @@ class ParsedChord:
     root: str
     body: str
     bass: str | None = None
+
+
+@dataclass(frozen=True)
+class ClassifiedLine:
+    kind: str
+    content: str
+    reason: str
 
 
 def transpose_chord_symbol(
@@ -103,7 +111,51 @@ def transpose_token(token: str, semitones: int, prefer_flats: bool = False) -> s
 
 
 def transpose_text(text: str, semitones: int, prefer_flats: bool = False) -> str:
-    parts = TOKEN_SPLIT_RE.split(text)
+    parts = LINE_SPLIT_RE.split(text)
+    transposed_parts = []
+    for part in parts:
+        if LINE_SPLIT_RE.fullmatch(part):
+            transposed_parts.append(part)
+            continue
+        transposed_parts.append(
+            transpose_line(part, semitones=semitones, prefer_flats=prefer_flats)
+        )
+    return "".join(transposed_parts)
+
+
+def debug_text(text: str, semitones: int, prefer_flats: bool = False) -> str:
+    parts = LINE_SPLIT_RE.split(text)
+    classified_lines: list[tuple[ClassifiedLine, str]] = []
+    labels = []
+    for index in range(0, len(parts), 2):
+        line = parts[index]
+        newline = parts[index + 1] if index + 1 < len(parts) else ""
+        if line == "" and newline == "":
+            continue
+        classified = classify_line(line, semitones=semitones, prefer_flats=prefer_flats)
+        label = f"{classified.kind} ({classified.reason}): "
+        labels.append(label)
+        classified_lines.append((classified, newline))
+
+    content_start = max((len(label) for label in labels), default=0)
+    debug_parts = []
+    for (classified, newline), label in zip(classified_lines, labels, strict=True):
+        padding = " " * (content_start - len(label))
+        debug_parts.append(f"{label}{padding}{classified.content}{newline}")
+    return "".join(debug_parts)
+
+
+def transpose_line(line: str, semitones: int, prefer_flats: bool = False) -> str:
+    return classify_line(line, semitones=semitones, prefer_flats=prefer_flats).content
+
+
+def classify_line(line: str, semitones: int, prefer_flats: bool = False) -> ClassifiedLine:
+    parts = TOKEN_SPLIT_RE.split(line)
+    tokens = [part for part in parts if part and not part.isspace()]
+    chord_decision = _classify_tokens(tokens)
+    if chord_decision.kind == "text":
+        return ClassifiedLine(kind="text", content=line, reason=chord_decision.reason)
+
     transposed_parts = []
     for part in parts:
         if not part or part.isspace():
@@ -112,7 +164,11 @@ def transpose_text(text: str, semitones: int, prefer_flats: bool = False) -> str
         transposed_parts.append(
             transpose_token(part, semitones=semitones, prefer_flats=prefer_flats)
         )
-    return "".join(transposed_parts)
+    return ClassifiedLine(
+        kind="chords",
+        content="".join(transposed_parts),
+        reason=chord_decision.reason,
+    )
 
 
 def is_chord_symbol(token: str) -> bool:
@@ -146,6 +202,59 @@ def looks_like_chord(token: str) -> bool:
         position = match.end()
 
     return True
+
+
+def _classify_tokens(tokens: list[str]) -> ClassifiedLine:
+    if not tokens:
+        return ClassifiedLine(
+            kind="text",
+            content="",
+            reason="empty line",
+        )
+
+    valid_chord_count = 0
+    chord_like_count = 0
+    for token in tokens:
+        if is_chord_symbol(token):
+            valid_chord_count += 1
+            continue
+        if looks_like_chord(token):
+            chord_like_count += 1
+            continue
+        return ClassifiedLine(
+            kind="text",
+            content="",
+            reason=f"contains non-chord token {token!r}",
+        )
+
+    if valid_chord_count == len(tokens):
+        token_word = "token" if valid_chord_count == 1 else "tokens"
+        return ClassifiedLine(
+            kind="chords",
+            content="",
+            reason=f"all {valid_chord_count} {token_word} parsed as chords",
+        )
+
+    if valid_chord_count >= 2:
+        chord_word = "token" if valid_chord_count == 1 else "tokens"
+        chord_like_word = "token" if chord_like_count == 1 else "tokens"
+        return ClassifiedLine(
+            kind="chords",
+            content="",
+            reason=(
+                f"identified {valid_chord_count} chord {chord_word}; "
+                f"{chord_like_count} additional {chord_like_word} looked chord-like"
+            ),
+        )
+
+    return ClassifiedLine(
+        kind="text",
+        content="",
+        reason=(
+            f"only {valid_chord_count} valid chord token found; "
+            f"need at least 2 before trusting chord-like tokens"
+        ),
+    )
 
 
 def _body_is_valid(body: str) -> bool:
