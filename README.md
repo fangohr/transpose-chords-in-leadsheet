@@ -2,18 +2,69 @@
 
 Transpose whitespace-delimited chord symbols in mixed chord/lyric text while preserving the original whitespace layout.
 
-Example:
+The examples below work on this text-based leadsheet with lyrics and chords (`songs/scarborough-fair.txt`):
 
-```bash
-transpose-chords inputfile.txt +3 outputfile.txt
+```
+Am        G        Am
+Are you going to Scarborough Fair?
+C            G        Am
+Parsley, sage, rosemary and thyme
+Am            G           Am
+Remember me to one who lives there
+C         G        Am
+She once was a true love of mine
 ```
 
+## Transpose song up by one tone (=two semitones)
+
+We can transpose by any number of semitones. For example 2 semitones up (`+2`):
+
+```bash
+transpose-chords songs/scarborough-fair.txt +2
+Bm        A        Bm
+Are you going to Scarborough Fair?
+D            A        Bm
+Parsley, sage, rosemary and thyme
+Bm            A           Bm
+Remember me to one who lives there
+D         A        Bm
+She once was a true love of mine
+```
+
+### Sharp or flats?
+
+By default, we use sharps (`#`) but can switch to flats (`b`) if preferred. Example (default sharps):
+
+```bash
+transpose-chords songs/scarborough-fair.txt +3
+Cm        A#        Cm
+Are you going to Scarborough Fair?
+D#            A#        Cm
+Parsley, sage, rosemary and thyme
+Cm            A#           Cm
+Remember me to one who lives there
+D#         A#        Cm
+She once was a true love of mine
+```
+
+Flats if desired (`--prefer-flats`):
+```bash
+transpose-chords songs/scarborough-fair.txt +3 --prefer-flats
+Cm        Bb        Cm
+Are you going to Scarborough Fair?
+Eb            Bb        Cm
+Parsley, sage, rosemary and thyme
+Cm            Bb           Cm
+Remember me to one who lives there
+Eb         Bb        Cm
+She once was a true love of mine
+```
 
 # For developers
 
 ## Tool usage
 
-Created with Codex (GPT-5.4).
+Created with Codex (GPT-5.4)
 
 ## Single Chord/tone transpose
 
