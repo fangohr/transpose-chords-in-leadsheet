@@ -94,3 +94,18 @@ I also verified it runs successfully and prints the transposed song.
 - change name of example task in pixi.toml
 - updated python and pytest version in pixi.toml (agent had chose python 3.11, but we want the latest available (3.14)
 - reviewed README.md
+
+
+# Prompt 5:
+
+Please create a github workflow to run the tests on pull requests, pushs and allow a manual re-run as well. Use the pixi tasks to run the tests (so we have the same test environment a local user would have when running pixi run test).
+
+# Response:
+
+Added the GitHub Actions workflow at test.yml (line 1).
+
+It runs on push, pull_request, and workflow_dispatch, uses the official prefix-dev/setup-pixi action, and executes the same command a local user would run:
+
+run: pixi run test
+I pinned setup-pixi to v0.9.3 and enabled locked: true so CI uses the checked-in pixi.lock consistently.
+
