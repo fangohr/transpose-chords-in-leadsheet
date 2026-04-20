@@ -64,7 +64,7 @@ She once was a true love of mine
 
 ## Tool usage
 
-Created with Codex (GPT-5.4)
+Created with Codex (GPT-5.4). See [agent-history.md](agent-history.md) for some more details.
 
 ## Single Chord/tone transpose
 
@@ -87,7 +87,8 @@ If this is of interested, you probably want to use `pychord` (see below).
 - [pytransposer on PyPI](https://pypi.org/project/pytransposer/)
 - [chordparser on PyPI](https://pypi.org/project/chordparser/)
 
-My read:
+Observations:
+
 - `pychord` is a parser/transposition core which could be used in this
   project as a depedency. Looks powerful (more than we need here).
 - `chordstransposer` is close match to the functionality of this
