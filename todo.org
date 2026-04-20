@@ -1,0 +1,267 @@
+* chord-transpose improvement plan
+
+This document is a handoff plan for a future agent. It focuses on the
+main functional weakness in the current implementation: chord parsing
+and line classification are still heuristic and can silently accept or
+ignore malformed chord-like input on short lines.
+
+** current state
+
+The project currently:
+
+- transposes whitespace-delimited chord symbols
+- classifies each line as either chord line or text line
+- preserves whitespace layout
+- errors on some malformed chord-like tokens
+- offers a debug mode that explains line classification
+
+The main remaining weakness is that some short malformed chord-like
+inputs are treated as text and therefore pass through unchanged.
+
+Examples observed with the current implementation:
+
+- ~C Cmaj7x~ is treated as text, not an error
+- ~Cmaj7x~ is treated as text, not an error
+- ~F#sus4 text~ is treated as text, not an error
+- ~C text~ is treated as text, not an error
+
+This behavior is now documented, so there is no immediate doc drift,
+but it remains a product decision that may not be desirable.
+
+** objectives
+
+1. Make supported chord syntax explicit and testable.
+2. Reduce false negatives for malformed chord-like lines.
+3. Reduce false positives on ordinary text.
+4. Keep whitespace-preserving behavior unchanged.
+5. Preserve a useful debug mode with human-readable reasons.
+
+** recommended implementation strategy
+
+*** phase 1: lock down current behavior with explicit tests
+
+Before changing parsing behavior, add tests that document the current
+decision boundaries.
+
+Add cases for:
+
+- valid common chords:
+  - ~C~
+  - ~Am~
+  - ~G/B~
+  - ~Bbmaj7~
+  - ~G#m7b5~
+  - ~Dsus2~
+  - ~A13sus4~
+  - ~Cadd9(no3)~
+  - ~Cmaj7(#11)~
+- chord-like but invalid:
+  - ~Cmaj7x~
+  - ~H~
+  - ~C/Eb/G~
+  - ~C,,~
+  - ~A##~
+- punctuation-wrapped tokens:
+  - ~[Am]~
+  - ~(G/B)~
+  - ~C,~
+  - ~D.~
+- ambiguous text:
+  - ~A4 paper~
+  - ~B2B sales~
+  - ~C3PO~
+  - ~E-mail~
+  - ~Amigo~
+
+Also add explicit tests for short-line classification:
+
+- one valid chord plus one invalid chord-like token
+- one invalid chord-like token alone
+- one valid chord plus one clear text token
+- multiple valid chords plus one invalid chord-like token
+
+Goal of phase 1:
+
+- establish expected behavior before changing parser logic
+- make later refactors safer
+
+*** phase 2: define supported chord grammar
+
+Write down the supported syntax in code comments and README.
+
+Recommended minimal grammar:
+
+- root note: ~A-G~ with optional ~#~ or ~b~
+- optional quality markers:
+  - ~m~, ~min~, ~maj~, ~dim~, ~aug~, ~sus~
+- optional extensions / numbers:
+  - ~2~, ~4~, ~5~, ~6~, ~7~, ~9~, ~11~, ~13~
+- optional modifiers:
+  - ~addX~, ~omitX~, ~noX~, ~bX~, ~#X~
+- optional parenthesized alterations:
+  - ~(b9)~, ~(#11)~, ~(b9,#11)~
+- optional slash bass:
+  - ~/A-G[#{b}]?~
+
+Out of scope unless intentionally added:
+
+- Nashville numbers
+- German note names
+- multiple slash sections like ~C/E/G~
+- wrapped punctuation unless explicitly normalized
+- double accidentals unless explicitly supported
+
+Goal of phase 2:
+
+- make support boundaries intentional instead of accidental
+
+*** phase 3: replace regex-only parsing with structured parsing
+
+The current parser is largely regex-driven and fragile at the edges.
+Refactor toward a structured parser.
+
+Recommended approach:
+
+1. parse root note
+2. parse optional suffix segments one by one
+3. parse optional slash bass
+4. reject unconsumed remainder
+
+Implementation note:
+
+- keep the public entrypoints stable if possible
+- introduce small internal helpers rather than one large regex
+
+Suggested internal representation:
+
+#+begin_src python
+@dataclass(frozen=True)
+class ParsedChord:
+    root: str
+    quality: str | None
+    modifiers: tuple[str, ...]
+    bass: str | None = None
+#+end_src
+
+This does not need to preserve full musical semantics. It only needs
+to separate the transposable note fields from the suffix text and
+support reliable validation.
+
+Goal of phase 3:
+
+- improve correctness
+- make accepted syntax understandable
+- make unsupported syntax fail deterministically
+
+*** phase 4: improve line classification
+
+Current classification rule:
+
+- text if any clearly non-chord token exists
+- chords if all tokens are valid chords
+- chords if at least 2 valid chords exist and the rest look chord-like
+- otherwise text
+
+This is pragmatic but hides malformed chord-like tokens on short lines.
+
+Explore one of these replacements:
+
+Option A: strict line scoring
+
+- parse all tokens strictly
+- count valid chords, invalid chord-like tokens, and non-chord tokens
+- classify using a score or threshold
+- error if a line has enough chord evidence and also invalid chord-like tokens
+
+Option B: configurable modes
+
+- strict:
+  - any invalid chord-like token on a likely chord line errors
+- balanced:
+  - close to current behavior
+- lenient:
+  - only transpose valid chords, leave everything else unchanged
+
+Recommendation:
+
+- keep current behavior as default only if preserving compatibility is
+  more important than surfacing notation mistakes
+- otherwise prefer a stricter default and document it clearly
+
+Goal of phase 4:
+
+- avoid silent pass-through of likely bad chord input
+
+*** phase 5: normalize common wrappers
+
+Many real chord sheets wrap chords in punctuation.
+
+Consider optional normalization for:
+
+- surrounding square brackets: ~[Am]~
+- surrounding parentheses: ~(G/B)~
+- trailing punctuation: ~C,~ ~D.~ ~Em:~
+
+Implementation idea:
+
+- split token into prefix / core / suffix
+- parse only core
+- transpose core
+- reattach prefix / suffix unchanged
+
+Be careful not to make prose parsing worse.
+
+Goal of phase 5:
+
+- improve usefulness on real-world text files
+
+*** phase 6: improve CLI and debugging
+
+Current CLI behavior is acceptable but still has gaps.
+
+Suggested improvements:
+
+- add tests for output write failures
+- update ~--debug~ help text to mention reasons and aligned formatting
+- consider reporting line numbers in parse errors
+- consider showing the original offending line in errors
+
+Recommended parse error format:
+
+- ~line 12: unable to parse chord-like token 'Cmaj7x'~
+
+Goal of phase 6:
+
+- make failures actionable for users
+
+** concrete next tasks
+
+Recommended execution order for a future agent:
+
+1. add regression tests for borderline chord tokens and short-line cases
+2. update README to define supported grammar explicitly
+3. refactor parser toward structured parsing
+4. revisit line-classification policy after parser refactor
+5. add wrapper normalization only after the parser is stable
+6. improve CLI error reporting with line numbers
+
+** acceptance criteria
+
+The work should be considered successful when:
+
+- supported chord syntax is explicitly documented
+- malformed chord-like input is handled intentionally, not accidentally
+- tests cover ambiguous short lines and punctuation-wrapped tokens
+- debug mode still explains why a line was classified as text or chords
+- no regressions in whitespace preservation
+- existing example songs still transpose correctly
+
+** notes for future agent
+
+- Do not start by widening the regex again. That will likely increase
+  ambiguity without making behavior easier to reason about.
+- Prefer adding tests first, then changing behavior.
+- Preserve the project’s narrow scope: this is a whitespace-preserving
+  leadsheet transposer, not a full harmony engine.
+- If adopting an external parser library is considered, justify the
+  tradeoff against the current zero-dependency package design.

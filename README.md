@@ -123,6 +123,5 @@ Observations:
 Unique features of this package:
 
 - narrow focus: whitespace-preserving file CLI
-- explicit error behavior for chord-like tokens
 - pixi-based workflow
 - tests around your exact song-sheet format.

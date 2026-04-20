@@ -232,3 +232,61 @@ songs/scarborough-fair.txt, which exists.
 Verification: pixi run test passes with 41 passed, and pixi run
 example now runs successfully.
 
+
+# Prompt 10:
+
+Review the document again: do you see functional weaknesses or diverging documentation, missing test cover or such?
+
+
+# Response:
+
+• Findings
+
+  1. Medium: malformed chord-like tokens are silently ignored on short lines, which contradicts the documented “complain about
+     unknown symbols” behavior. The current heuristic only treats a mixed-validity line as a chord line when it has at least 2 valid
+     chord tokens; otherwise it falls back to text and skips validation entirely. In practice, C Cmaj7x, Cmaj7x, F#sus4 text, and C
+     text all pass through unchanged instead of erroring. That behavior comes from src/chord_transpose/transposer.py:207, especially
+     the valid_chord_count >= 2 threshold at src/chord_transpose/transposer.py:238, and it diverges from the README claim that
+     “malformed tokens on chord lines raise an error” at README.md:4.
+  2. Low: the CLI help text for --debug is now stale. The actual output is no longer just a prefix with chords or text; it includes a
+     reason string and aligned formatting. But the help still says “Prefix each output line with its classification: chords or text.”
+     See src/chord_transpose/cli.py:23. That is misleading for users trying to understand the flag from --help.
+  3. Low: file-I/O error handling is only partially covered by tests. You added coverage for a missing input file at tests/
+     test_transposer.py:155, but there is still no test for output write failures even though src/chord_transpose/cli.py:59 now has a
+     dedicated error path. That leaves the new error handling only half-regression-tested.
+
+  Residual risks
+
+  - The line classifier remains intentionally conservative, but the tradeoff is that short or mixed lines can hide notation mistakes
+    instead of surfacing them.
+  - Debug output formatting is tested, but the underlying classification explanations are still fairly heuristic and may surprise
+    users on borderline inputs.
+
+  Change summary
+
+  The project is in better shape than on the first pass: the broken Pixi example is fixed, missing-input handling is controlled, and
+  the debug mode is documented and tested. The main remaining issue is behavioral: the current line classifier no longer reliably
+  enforces “unknown chord-like tokens should fail” on short lines.
+
+
+# Prompt 11:
+
+I have updated the README.md to reflect what you say.
+
+# Response
+
+• That resolves the main documentation drift I had flagged.
+
+  The remaining substantive issue is behavioral, not documentary: short lines with malformed chord-like tokens are still treated as
+  text and pass through unchanged, for example C Cmaj7x or Cmaj7x. If that tradeoff is acceptable, the README and implementation are
+  aligned. If not, the next step is to tighten the line-classification rule and add tests for those short malformed cases.
+
+# Prompt 12 + 13:
+
+What are example chords that may not be recognised? How can we do better than the current state?
+
+[...]
+
+Turns this into an improvement plan, and add the plan to the
+repository as a org-mode file `todo.org`. Write it so, that an agent
+can pick it up later if needed.
