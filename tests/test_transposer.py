@@ -78,14 +78,14 @@ def test_transposing_by_plus_or_minus_twelve_returns_original_pitch(chord: str) 
     ("song_path", "expected_plus_two_snippet", "expected_minus_two_snippet"),
     [
         (
-            "songs/monsun.txt",
-            "F#    F#sus4 F#   D      Dsus4 D     F#",
-            "D    Dsus4 D  A#        A#sus4 A#  D",
+            "songs/house-of-the-rising-sun.txt",
+            "Bm     D      E       G",
+            "Gm     A#      C       D#",
         ),
         (
-            "songs/nur-ein-wort.txt",
-            "D F#m Bm G  D F#m Bm G",
-            "A# Dm Gm D#  A# Dm Gm D#",
+            "songs/scarborough-fair.txt",
+            "Bm        A        Bm",
+            "Gm        F        Gm",
         ),
     ],
 )
