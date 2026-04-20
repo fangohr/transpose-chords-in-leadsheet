@@ -32,6 +32,12 @@ D         A        Bm
 She once was a true love of mine
 ```
 
+To save the ouput to a new file, provide an output file name as the third argument:
+
+```bash
+transpose-chords songs/scarborough-fair.txt +2 transposed-song.txt
+```
+
 ### Sharp or flats?
 
 By default, we use sharps (`#`) but can switch to flats (`b`) if preferred. Example (default sharps):
