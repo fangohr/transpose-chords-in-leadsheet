@@ -1,7 +1,7 @@
-# chord-transpose
+# Chord-transpose (in leadsheets)
 
 Transpose whitespace-delimited chord symbols in mixed chord/lyric text while preserving the original whitespace layout.
-Lines are classified as either chord lines or text lines: text lines are left untouched, while malformed tokens on chord lines raise an error.
+Lines are classified as either chord lines or text lines: text lines are left untouched, while tokens on chord lines are transposed by a given number of semitones.
 
 The examples below work on this text-based leadsheet with lyrics and chords (`songs/scarborough-fair.txt`):
 
