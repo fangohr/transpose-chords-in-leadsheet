@@ -8,6 +8,7 @@ from .transposer import ChordParseError, debug_text, transpose_text
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Create the command-line parser for the transpose-chords entry point."""
     parser = argparse.ArgumentParser(
         prog="transpose-chords",
         description="Transpose whitespace-delimited chord symbols in a text file.",
@@ -29,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the CLI, returning a process-style status code."""
     parser = build_parser()
     args = parser.parse_args(argv)
 

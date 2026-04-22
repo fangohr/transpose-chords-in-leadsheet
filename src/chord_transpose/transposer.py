@@ -46,11 +46,15 @@ ROOT_PREFIX_RE = re.compile(r"^(?:[A-G](?:#|b)?|[Hh])")
 
 
 class ChordParseError(ValueError):
+    """Raised when text appears to be chord notation but cannot be parsed safely."""
+
     pass
 
 
 @dataclass(frozen=True)
 class ParsedChord:
+    """Normalized representation of one chord symbol before transposition."""
+
     root: str
     body: str
     bass: str | None = None
@@ -58,6 +62,8 @@ class ParsedChord:
 
 @dataclass(frozen=True)
 class ClassifiedLine:
+    """Line classification result carrying the rendered content and explanation."""
+
     kind: str
     content: str
     reason: str
@@ -66,6 +72,7 @@ class ClassifiedLine:
 def transpose_chord_symbol(
     chord: str, semitones: int, prefer_flats: bool = False
 ) -> str:
+    """Transpose one chord symbol while preserving its chord quality text."""
     parsed = parse_chord_symbol(chord)
     transposed_root = transpose_note(parsed.root, semitones, prefer_flats=prefer_flats)
     if parsed.bass is None:
@@ -76,6 +83,7 @@ def transpose_chord_symbol(
 
 
 def transpose_note(note: str, semitones: int, prefer_flats: bool = False) -> str:
+    """Transpose a note name by semitones and render it in the configured style."""
     try:
         index = NOTE_TO_INDEX[note]
     except KeyError as exc:
@@ -86,6 +94,7 @@ def transpose_note(note: str, semitones: int, prefer_flats: bool = False) -> str
 
 
 def parse_chord_symbol(token: str) -> ParsedChord:
+    """Parse a single chord token into normalized root, body, and optional bass."""
     match = CHORD_RE.fullmatch(token)
     if not match:
         raise ChordParseError(f"Unable to parse chord symbol: {token}")
@@ -102,6 +111,7 @@ def parse_chord_symbol(token: str) -> ParsedChord:
 
 
 def transpose_token(token: str, semitones: int, prefer_flats: bool = False) -> str:
+    """Transpose a token, rejecting malformed tokens that look chord-like."""
     if is_chord_symbol(token):
         return transpose_chord_symbol(token, semitones, prefer_flats=prefer_flats)
     if looks_like_chord(token):
@@ -113,6 +123,7 @@ def transpose_token(token: str, semitones: int, prefer_flats: bool = False) -> s
 
 
 def transpose_text(text: str, semitones: int, prefer_flats: bool = False) -> str:
+    """Transpose chord lines in a text block while preserving line endings."""
     parts = LINE_SPLIT_RE.split(text)
     transposed_parts = []
     for part in parts:
@@ -126,6 +137,7 @@ def transpose_text(text: str, semitones: int, prefer_flats: bool = False) -> str
 
 
 def debug_text(text: str, semitones: int, prefer_flats: bool = False) -> str:
+    """Return transposed text with each line prefixed by its classification."""
     parts = LINE_SPLIT_RE.split(text)
     classified_lines: list[tuple[ClassifiedLine, str]] = []
     labels = []
@@ -148,10 +160,12 @@ def debug_text(text: str, semitones: int, prefer_flats: bool = False) -> str:
 
 
 def transpose_line(line: str, semitones: int, prefer_flats: bool = False) -> str:
+    """Transpose one line if it is classified as a chord line."""
     return classify_line(line, semitones=semitones, prefer_flats=prefer_flats).content
 
 
 def classify_line(line: str, semitones: int, prefer_flats: bool = False) -> ClassifiedLine:
+    """Classify one line as chords or text and transpose chord lines only."""
     parts = TOKEN_SPLIT_RE.split(line)
     tokens = [part for part in parts if part and not part.isspace()]
     chord_decision = _classify_tokens(tokens)
@@ -174,6 +188,7 @@ def classify_line(line: str, semitones: int, prefer_flats: bool = False) -> Clas
 
 
 def is_chord_symbol(token: str) -> bool:
+    """Return whether a token can be parsed as a supported chord symbol."""
     try:
         parse_chord_symbol(token)
     except ChordParseError:
@@ -182,6 +197,7 @@ def is_chord_symbol(token: str) -> bool:
 
 
 def looks_like_chord(token: str) -> bool:
+    """Return whether a token has enough chord syntax to flag bad notation."""
     prefix = ROOT_PREFIX_RE.match(token)
     if prefix is None:
         return False
@@ -207,6 +223,7 @@ def looks_like_chord(token: str) -> bool:
 
 
 def _classify_tokens(tokens: list[str]) -> ClassifiedLine:
+    """Decide whether a sequence of non-space tokens should be treated as chords."""
     if not tokens:
         return ClassifiedLine(
             kind="text",
@@ -260,6 +277,7 @@ def _classify_tokens(tokens: list[str]) -> ClassifiedLine:
 
 
 def _body_is_valid(body: str) -> bool:
+    """Validate that a chord body consists only of known body fragments."""
     position = 0
     while position < len(body):
         match = CHORD_BODY_PART.match(body, position)
@@ -270,10 +288,12 @@ def _body_is_valid(body: str) -> bool:
 
 
 def _is_strong_chord_marker(marker: str) -> bool:
+    """Return whether a body fragment strongly indicates chord notation."""
     return marker != "-"
 
 
 def _normalize_note_alias(note: str | None) -> str | None:
+    """Map accepted note aliases to their canonical internal note names."""
     if note is None:
         return None
     return GERMAN_B_ALIASES.get(note, note)
