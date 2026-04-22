@@ -67,6 +67,8 @@ Eb         Bb        Cm
 She once was a true love of mine
 ```
 
+German `H`/`h` notation is accepted as an input alias for `B`. Output is always rendered with `B`, for example `Hm7` transposed by `+0` becomes `Bm7`.
+
 
 
 ### Debug classification output (`--debug`):

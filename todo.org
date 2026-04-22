@@ -55,9 +55,9 @@ Add cases for:
   - ~A13sus4~
   - ~Cadd9(no3)~
   - ~Cmaj7(#11)~
+  - H
 - chord-like but invalid:
   - ~Cmaj7x~
-  - ~H~
   - ~C/Eb/G~
   - ~C,,~
   - ~A##~

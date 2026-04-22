@@ -14,6 +14,10 @@ from chord_transpose.transposer import classify_line, debug_text
         ("F#", 3, "A"),
         ("Gb", -1, "F"),
         ("B", 1, "C"),
+        ("H", 1, "C"),
+        ("h", 1, "C"),
+        ("Hm7", 0, "Bm7"),
+        ("C/H", 2, "D/C#"),
         ("A", 12, "A"),
         ("D", -12, "D"),
         ("D", -14, "C"),
@@ -32,7 +36,7 @@ def test_prefer_flats_output() -> None:
 
 
 def test_preserves_whitespace_layout_in_mixed_text() -> None:
-    text = "C   G/B\nhello   world\nF#sus4\n"
+    text = "C   G/H\nhello   world\nF#sus4\n"
     expected = "D   A/C#\nhello   world\nG#sus4\n"
     assert transpose_text(text, 2) == expected
 
@@ -99,6 +103,8 @@ def test_debug_reason_explains_chord_like_but_not_chord_line() -> None:
         "A#",
         "Bb",
         "B",
+        "H",
+        "h",
     ],
 )
 def test_transposing_by_plus_or_minus_twelve_returns_original_pitch(chord: str) -> None:

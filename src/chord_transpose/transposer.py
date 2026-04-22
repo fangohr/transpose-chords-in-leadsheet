@@ -30,17 +30,19 @@ NOTE_TO_INDEX = {
     "Cb": 11,
 }
 
+GERMAN_B_ALIASES = {"H": "B", "h": "B"}
+
 CHORD_BODY_PART = re.compile(
     r"(maj|min|dim|aug|sus|add|omit|no|dom|alt|M|m|Δ|ø|°|\+|-|#|b|\d+|\(|\))"
 )
 CHORD_RE = re.compile(
-    r"^(?P<root>[A-G](?:#|b)?)"
+    r"^(?P<root>(?:[A-G](?:#|b)?|[Hh]))"
     r"(?P<body>(?:(?:maj|min|dim|aug|sus|add|omit|no|dom|alt|M|m|Δ|ø|°|\+|-|#|b|\d+|\(|\))*)?)"
-    r"(?P<slash>/(?P<bass>[A-G](?:#|b)?))?$"
+    r"(?P<slash>/(?P<bass>(?:[A-G](?:#|b)?|[Hh])))?$"
 )
 LINE_SPLIT_RE = re.compile(r"(\r\n|\r|\n)")
 TOKEN_SPLIT_RE = re.compile(r"([^\S\r\n]+)")
-ROOT_PREFIX_RE = re.compile(r"^[A-G](?:#|b)?")
+ROOT_PREFIX_RE = re.compile(r"^(?:[A-G](?:#|b)?|[Hh])")
 
 
 class ChordParseError(ValueError):
@@ -93,9 +95,9 @@ def parse_chord_symbol(token: str) -> ParsedChord:
         raise ChordParseError(f"Unable to parse chord symbol: {token}")
 
     return ParsedChord(
-        root=match.group("root"),
+        root=_normalize_note_alias(match.group("root")),
         body=body,
-        bass=match.group("bass"),
+        bass=_normalize_note_alias(match.group("bass")),
     )
 
 
@@ -269,3 +271,9 @@ def _body_is_valid(body: str) -> bool:
 
 def _is_strong_chord_marker(marker: str) -> bool:
     return marker != "-"
+
+
+def _normalize_note_alias(note: str | None) -> str | None:
+    if note is None:
+        return None
+    return GERMAN_B_ALIASES.get(note, note)
