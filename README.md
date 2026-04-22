@@ -1,4 +1,4 @@
-# Chord-transpose (in leadsheets)
+# Transpose chords in (text-based) leadsheets (`transpose-chords-in-leadsheet`)
 
 Transpose whitespace-delimited chord symbols in mixed chord/lyric text while preserving the original whitespace layout.
 Lines are classified as either chord lines or text lines: text lines are left untouched, while tokens on chord lines are transposed by a given number of semitones.
@@ -13,6 +13,8 @@ pip install git+https://github.com/fangohr/transpose-chords-in-leadsheet.git
 
 This installs the `transpose-chords` command-line tool.
 
+## Usage
+
 The examples below work on this text-based leadsheet with lyrics and chords (`songs/scarborough-fair.txt`):
 
 ```
@@ -26,7 +28,7 @@ C         G        Am
 She once was a true love of mine
 ```
 
-## Transpose song up by one tone (=two semitones)
+### Transpose song up by one tone (=two semitones)
 
 We can transpose by any number of semitones. For example 2 semitones up (`+2`):
 
@@ -48,7 +50,7 @@ To save the ouput to a new file, provide an output file name as the third argume
 transpose-chords songs/scarborough-fair.txt +2 transposed-song.txt
 ```
 
-### Sharp or flats?
+#### Sharp or flats?
 
 By default, we use sharps (`#`) but can switch to flats (`b`) if preferred. Example (default sharps):
 

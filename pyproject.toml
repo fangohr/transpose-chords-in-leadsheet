@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chord-transpose"
+name = "transpose-chords-in-leadsheet"
 version = "0.1.0"
 description = "Transpose chord symbols in whitespace-delimited text files."
 readme = "README.md"
