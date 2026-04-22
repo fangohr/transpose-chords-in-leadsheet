@@ -3,6 +3,16 @@
 Transpose whitespace-delimited chord symbols in mixed chord/lyric text while preserving the original whitespace layout.
 Lines are classified as either chord lines or text lines: text lines are left untouched, while tokens on chord lines are transposed by a given number of semitones.
 
+## Installation
+
+Install the package directly from the GitHub repository with `pip`:
+
+```bash
+pip install git+https://github.com/fangohr/transpose-chords-in-leadsheet.git
+```
+
+This installs the `transpose-chords` command-line tool.
+
 The examples below work on this text-based leadsheet with lyrics and chords (`songs/scarborough-fair.txt`):
 
 ```
